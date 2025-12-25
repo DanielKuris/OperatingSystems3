@@ -7,6 +7,11 @@
 #include "unistd.h"
 #include <string.h>
 #include <ctype.h>
+#include <limits.h> // Constant from limits.h PATH_MAX
+
+/*
+    START of HELPER functions
+*/
 
 // Initial set up
 char *initial(char *command, char **cmdpt) {
@@ -58,6 +63,11 @@ int amper_check(char *argv[], int argc) {
     return 0;                 
 }
 
+
+/*
+    START of ASSIGNMENT functions
+*/
+
 /* Redirects:
    " > " redirects output to named file
    " 2> " redirects error output to named file
@@ -90,6 +100,63 @@ void redirect(char *argv[]) {
 }
 
 
+int handle_cd(int argc, char *argv[]) {
+    char *dir = (argc > 1) ? argv[1] : getenv("HOME"); // Default to HOME if no path
+
+    // Needed? Verifies successful "HOME" extraction
+    if (!dir) {
+        fprintf(stderr, "cd: No directory specified, and couldn't extract home path\n");
+        return -1; // failure
+    }
+
+    // Absolute path
+    if (dir[0] == '/') {
+        if (chdir(dir) != 0) {
+            fprintf(stderr, "cd: cannot change directory to '%s'\n", dir);
+            perror("Reason");
+            return -1;
+        }
+    } else {
+        // Relative path: append to current working directory
+        char cwd[PATH_MAX];
+        if (!getcwd(cwd, sizeof(cwd))) {
+            perror("getcwd failed");
+            return -1;
+        }
+
+        // Dynamically allocate combined path: cwd + '/' + dir + '\0'
+        size_t path_len = strlen(cwd) + 1 + strlen(dir) + 1;
+        char *path = malloc(path_len);
+        if (!path) {
+            perror("malloc failed");
+            return -1;
+        }
+
+        snprintf(path, path_len, "%s/%s", cwd, dir); // combine cwd and dir
+
+        if (chdir(path) != 0) {
+            fprintf(stderr, "cd: cannot change directory to '%s'\n", path);
+            perror("Reason");
+            free(path);
+            return -1;
+        }
+
+        free(path);
+    }
+
+    return 0;
+}
+
+
+void handle_mypwd() {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("%s\n", cwd);
+    } else {
+        perror("mypwd");
+    }
+}
+
 
 int main()
 {
@@ -112,6 +179,18 @@ int main()
             if (argv[0] != NULL){
 
                 amper = amper_check(argv, argc);  /* Does command line end with & */
+                
+                // Handles "cd" command case
+                if (strcmp(argv[0], "cd") == 0) {
+                    handle_cd(argc, argv);
+                    goto next_command; // skip fork/execvp
+                }
+
+                // Handles "mypwd" command case
+                if (strcmp(argv[0], "mypwd") == 0) {
+                    handle_mypwd();
+                    goto next_command; // skip fork/execvp
+                }
 
                 /* for commands not part of the shell command language */ 
 
@@ -119,7 +198,7 @@ int main()
 
                 if (pid < 0) {
                     perror("fork failed");
-                    continue; // skip this command and continue shell loop
+                    goto next_command; // skip this command and continue shell loop
                 }
                 else if (pid == 0) 
                 { 
@@ -136,7 +215,9 @@ int main()
                 }
 
             }
-            // next command
+            
+
+            next_command:
             line = strtok_r(NULL, ";", &cmdpt);
         }
         
