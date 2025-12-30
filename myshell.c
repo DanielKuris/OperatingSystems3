@@ -102,7 +102,8 @@ void redirect(char *argv[]) {
 
 
 int handle_cd(int argc, char *argv[]) {
-    char *dir = (argc > 1) ? argv[1] : getenv("HOME"); // Default to HOME if no path
+    // If no argument: go to HOME
+    char *dir = (argc > 1) ? argv[1] : getenv("HOME");
 
     // Needed? Verifies successful "HOME" extraction
     if (!dir) {
@@ -110,39 +111,9 @@ int handle_cd(int argc, char *argv[]) {
         return -1; 
     }
 
-    // Absolute path
-    if (dir[0] == '/') {
-        if (chdir(dir) != 0) {
-            fprintf(stderr, "cd: cannot change directory to '%s'\n", dir);
-            perror("Reason");
-            return -1;
-        }
-    } else {
-        // Relative path: append to current working directory
-        char cwd[PATH_MAX];
-        if (!getcwd(cwd, sizeof(cwd))) {
-            perror("getcwd failed");
-            return -1;
-        }
-
-        // Dynamically allocate combined path: cwd + '/' + dir + '\0'
-        size_t path_len = strlen(cwd) + 1 + strlen(dir) + 1;
-        char *path = malloc(path_len);
-        if (!path) {
-            perror("malloc failed");
-            return -1;
-        }
-
-        snprintf(path, path_len, "%s/%s", cwd, dir); // combine cwd and dir
-
-        if (chdir(path) != 0) {
-            fprintf(stderr, "cd: cannot change directory to '%s'\n", path);
-            perror("Reason");
-            free(path);
-            return -1;
-        }
-
-        free(path);
+    if (chdir(dir) != 0) {
+        perror("cd");
+        return -1;
     }
 
     return 0;
