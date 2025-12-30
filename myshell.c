@@ -7,13 +7,14 @@
 #include "unistd.h"
 #include <string.h>
 #include <ctype.h>
-#include <limits.h> // Constant from limits.h PATH_MAX
+#include <limits.h> // Constant from limits.h PATH_MAX (1024 on Linux)
 
 /*
     START of HELPER functions
 */
 
 // Initial set up
+// Reads a command from stdin, returns the first line separated by ";"
 char *initial(char *command, char **cmdpt) {
     printf("hello: ");
     fflush(stdout);
@@ -21,7 +22,7 @@ char *initial(char *command, char **cmdpt) {
     size_t len = strlen(command);
     if (len > 0 && command[len - 1] == '\n')
         command[len - 1] = '\0';  // remove trailing newline
-    return strtok_r(command, ";", cmdpt);
+    return strtok_r(command, ";", cmdpt); // Strtok_r is required for the later usage when the loop iterates per line
 }
 
 // Trims leading and trailing spaces/tabs in place
@@ -92,9 +93,9 @@ void redirect(char *argv[]) {
             argv[j] = argv[j+1] = NULL;
             j++;
         } 
-        else if (!strcmp(argv[j], "2>&1")) {
-            dup2(STDOUT_FILENO, STDERR_FILENO);
-            argv[j] = NULL;
+        else if (!strcmp(argv[j], "2>&1")) {  // Use case ex. hello: ls –l myshell nofile > out 2>&1
+            dup2(STDOUT_FILENO, STDERR_FILENO); // Expected "> out" before "2>&1"
+            argv[j] = NULL;  
         }
     }
 }
@@ -106,7 +107,7 @@ int handle_cd(int argc, char *argv[]) {
     // Needed? Verifies successful "HOME" extraction
     if (!dir) {
         fprintf(stderr, "cd: No directory specified, and couldn't extract home path\n");
-        return -1; // failure
+        return -1; 
     }
 
     // Absolute path
