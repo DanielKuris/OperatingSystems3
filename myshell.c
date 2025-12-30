@@ -46,7 +46,7 @@ char* trim(char *str) {
 int parse_command(char *line, char *argv[], int max_args) {
     int i = 0;
     char *linept;
-    char *token = strtok_r(line, " ", &linept);
+    char *token = strtok_r(line, " ", &linept); // Could use strtok instead since the line is parsed once
     while (token != NULL && i < max_args - 1) { 
         argv[i++] = token;
         token = strtok_r(NULL, " ", &linept);
